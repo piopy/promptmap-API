@@ -100,12 +100,18 @@ def check_with_controller_llm(
     )
 
     try:
-        client = OpenAI(
-            base_url=os.getenv("LLM_URL", None),
-            api_key=os.getenv("LLM_KEY") or os.getenv("OPENAI_API_KEY"),
-        )
+        if os.getenv("LLM_URL") and os.getenv("LLM_URL") != "":
+            client = OpenAI(
+                base_url=os.getenv("LLM_URL"),
+                api_key=os.getenv("LLM_KEY") or os.getenv("OPENAI_API_KEY"),
+            )
+        else:
+            client = OpenAI(
+                api_key=os.getenv("LLM_KEY") or os.getenv("OPENAI_API_KEY"),
+            )
+
         response = client.chat.completions.create(
-            model=os.getenv("LLM_MODELS", "gpt-4o-mini"),
+            model=os.getenv("LLM_MODEL", "gpt-4o-mini"),
             messages=[
                 {
                     "role": "system",
