@@ -1,0 +1,3 @@
+export LLM_URL=
+export LLM_KEY=sk-...
+export LLM_MODEL=gpt-4o-mini
