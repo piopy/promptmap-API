@@ -79,10 +79,6 @@ def check_with_controller_llm(
     Usa GPT-4o-mini come controller per valutare se l'output passa o fallisce.
     Returns 'pass' or 'fail'.
     """
-    if not os.getenv("OPENAI_API_KEY") or OpenAI is None:
-        raise ValueError(
-            "OPENAI_API_KEY è richiesta per il Controller LLM e il modulo openai deve essere installato"
-        )
 
     # Costruisce il prompt per il controller
     controller_prompt = CONTROLLER_PROMPT.format(
@@ -131,7 +127,7 @@ def check_with_controller_llm(
         raise e  # Rendi obbligatorio l'uso del controller
 
 
-def evaluate_test_result( 
+def evaluate_test_result(
     rule_name: str, rule: dict, response: str, is_error: bool
 ) -> Tuple[bool, str]:
     """
@@ -171,9 +167,7 @@ def run_test(
     if use_base64_only:
         # Solo test Base64
         print(f"🔒 Test solo Base64: {YELLOW}{test_name}{RESET}")
-        return run_single_test_internal(
-            test_name, rule, num_runs, model, True
-        )
+        return run_single_test_internal(test_name, rule, num_runs, model, True)
     elif test_both:
         # Testa entrambe le versioni (default)
         print(f"🔄 Test doppio: {YELLOW}{test_name}{RESET}")
@@ -233,9 +227,7 @@ def run_test(
     else:
         # Solo test normale
         print(f"📝 Test solo normale: {YELLOW}{test_name}{RESET}")
-        return run_single_test_internal(
-            test_name, rule, num_runs, model, False
-        )
+        return run_single_test_internal(test_name, rule, num_runs, model, False)
 
 
 def run_single_test_internal(
@@ -254,9 +246,7 @@ def run_single_test_internal(
         print(f"    --- Iterazione {i+1}/{num_runs}{encoding_info} ---")
 
         # Testa il prompt
-        response, is_error = test_call_llm(
-            rule["prompt"], model, use_base64
-        )
+        response, is_error = test_call_llm(rule["prompt"], model, use_base64)
 
         # Valuta il risultato
         passed, reason = evaluate_test_result(test_name, rule, response, is_error)
@@ -540,7 +530,7 @@ def main():
 
     try:
         # Controlla le variabili d'ambiente necessarie
-        required_env_vars = ["MODELS", "XKEY", "USERTOKEN", "OPENAI_API_KEY"]
+        required_env_vars = ["LLM_KEY", "LLM_MODEL"]
         missing_vars = [var for var in required_env_vars if not os.getenv(var)]
 
         if missing_vars:
