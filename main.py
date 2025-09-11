@@ -22,8 +22,6 @@ YELLOW = "\033[93m"
 RESET = "\033[0m"
 
 
-
-
 def load_test_rules() -> Dict[str, dict]:
     """Carica tutte le regole di test dai file YAML nella directory rules."""
     rules = {}
@@ -39,7 +37,6 @@ def load_test_rules() -> Dict[str, dict]:
             print(f"Errore caricando {rule_file}: {e}")
 
     return rules
-
 
 
 def test_call_llm(
@@ -61,7 +58,6 @@ def test_call_llm(
 
         combined_prompt = f"{test_prompt_to_use}"
         result = call_llm(PROMPT=combined_prompt, MODEL=model)
-
         if result.get("message") == "success" and "response" in result:
             return result["response"].strip(), False
         else:
@@ -407,23 +403,29 @@ def run_tests(
     return results
 
 
-def print_summary(results: Dict[str, dict]):
-    """Stampa un riassunto dei risultati dei test."""
+def print_summary(results: Dict[str, dict]) -> str:
+    """Stampa un riassunto dei risultati dei test e lo ritorna come stringa."""
+    output_lines = []
+
+    def _p(s):
+        print(s)
+        output_lines.append(s)
+
     if not results:
-        print("Nessun risultato da mostrare.")
-        return
+        _p("Nessun risultato da mostrare.")
+        return "\n".join(output_lines)
 
     total_tests = len(results)
     passed_tests = sum(1 for r in results.values() if r["passed"])
     failed_tests = total_tests - passed_tests
 
-    print(f"\n{'='*60}")
-    print(f"RIASSUNTO RISULTATI GLOBALI")
-    print(f"{'='*60}")
-    print(f"Test totali: {total_tests}")
-    print(f"Test passati: {GREEN}{passed_tests}{RESET}")
-    print(f"Test falliti: {RED}{failed_tests}{RESET}")
-    print(f"Tasso di successo: {(passed_tests/total_tests*100):.1f}%")
+    _p(f"\n{'='*60}")
+    _p(f"RIASSUNTO RISULTATI GLOBALI")
+    _p(f"{'='*60}")
+    _p(f"Test totali: {total_tests}")
+    _p(f"Test passati: {GREEN}{passed_tests}{RESET}")
+    _p(f"Test falliti: {RED}{failed_tests}{RESET}")
+    _p(f"Tasso di successo: {(passed_tests/total_tests*100):.1f}%")
 
     # Raggruppa risultati per modello
     models_results = {}
@@ -440,9 +442,9 @@ def print_summary(results: Dict[str, dict]):
             models_results[model]["tests"].append((test_name, result))
 
     # Mostra risultati per modello
-    print(f"\n{'='*60}")
-    print(f"RIASSUNTO PER MODELLO")
-    print(f"{'='*60}")
+    _p(f"\n{'='*60}")
+    _p(f"RIASSUNTO PER MODELLO")
+    _p(f"{'='*60}")
 
     for model, stats in models_results.items():
         success_rate = (
@@ -452,14 +454,14 @@ def print_summary(results: Dict[str, dict]):
             "✅" if success_rate >= 80 else "⚠️" if success_rate >= 50 else "❌"
         )
 
-        print(f"\n🤖 {model} {status_emoji}")
-        print(f"  Test totali: {stats['total']}")
-        print(f"  Passati: {GREEN}{stats['passed']}{RESET}")
-        print(f"  Falliti: {RED}{stats['failed']}{RESET}")
-        print(f"  Tasso di successo: {success_rate:.1f}%")
+        _p(f"\n🤖 {model} {status_emoji}")
+        _p(f"  Test totali: {stats['total']}")
+        _p(f"  Passati: {GREEN}{stats['passed']}{RESET}")
+        _p(f"  Falliti: {RED}{stats['failed']}{RESET}")
+        _p(f"  Tasso di successo: {success_rate:.1f}%")
 
         if stats["tests"]:
-            print(f"  {RED}Test falliti:{RESET}")
+            _p(f"  {RED}Test falliti:{RESET}")
             for test_name, result in stats["tests"]:
                 severity_color = (
                     RED
@@ -467,9 +469,10 @@ def print_summary(results: Dict[str, dict]):
                     else YELLOW if result["severity"] == "medium" else GREEN
                 )
                 clean_test_name = test_name.replace(f"_{model.replace(' ', '_')}", "")
-                print(
+                _p(
                     f"    - {clean_test_name} ({result['type']}, {severity_color}{result['severity']}{RESET}) - {result['pass_rate']}"
                 )
+    return "\n".join(output_lines)
 
 
 def main():
@@ -571,12 +574,16 @@ def main():
         )
 
         # Stampa riassunto
-        print_summary(results)
+        summary = print_summary(results)
 
         # Salva risultati
         with open(args.output, "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2, ensure_ascii=False)
         print(f"\nRisultati salvati in: {args.output}")
+
+        with open(args.output.replace(".json", ".txt"), "w", encoding="utf-8") as f:
+            f.write(summary)
+        print(f"\nRiassunto salvato in: {args.output.replace('.json','.txt')}")
 
     except KeyboardInterrupt:
         print(f"\n{YELLOW}Test interrotti dall'utente.{RESET}")
