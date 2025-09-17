@@ -65,7 +65,7 @@ This script sets up necessary environment variables for API keys and configurati
 
 ### Ollama Installation (if using local models)
 
-If you want to use local models, install Ollama from [ollama.ai/download](https://ollama.ai/download).
+If you want to use local models, install Ollama from [ollama.ai/download](https://ollama.ai/download) and set call_llm function in `requests_to_llm.py` to use Ollama's API.
 
 ## Adding Prompts
 
@@ -85,47 +85,51 @@ If you want to use local models, install Ollama from [ollama.ai/download](https:
 
 ### Basic Usage
 
+1. Configure your target and controller LLMs in `scripts/env_init.sh` or set environment variables directly via export commands.
+2. Write or modify test rules in the `rules/` directory.
+3. Write down a call to your target LLM in `requests_to_llm.py` in the `call_llm` function, returning the required response format in a dictionary (like the examples).
+
 Run the main script with your configurations:
 
 ```bash
-python main.py --model gpt-4
+python main.py
 ```
 
 ### Advanced Options
 
 1. JSON output:
 ```bash
-python main.py --model gpt-4 --output results.json
+python main.py --output results.json
 ```
 
 2. Custom number of test iterations:
 ```bash
-python main.py --model gpt-4 --iterations 10
+python main.py --iterations 10
 ```
 
 3. Running Specific Rules:
 ```bash
 # Run only selected rules by name
-python main.py --model gpt-4 --rules prompt_stealer_basic,distraction_basic
+python main.py --rules prompt_stealer_basic,distraction_basic
 
 # Run all rules from specific categories
-python main.py --model gpt-4 --rule-type prompt_stealing,jailbreak
+python main.py --rule-type prompt_stealing,jailbreak
 ```
 
 4. Base64 or Normal Mode:
 ```bash
 # Test only with Base64 encoding
-python main.py --model gpt-4 --base64
+python main.py --base64
 
 # Test only in normal format
-python main.py --model gpt-4 --normal-only
+python main.py --normal-only
 ```
 
 ### Firewall Testing Mode
 
 For testing firewall LLMs, use:
 ```bash
-python main.py --model gpt-4 --firewall --pass-condition="true"
+python main.py --firewall --pass-condition="true"
 ```
 
 ## Test Rules
