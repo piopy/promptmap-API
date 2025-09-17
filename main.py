@@ -22,6 +22,8 @@ YELLOW = "\033[93m"
 RESET = "\033[0m"
 
 
+
+
 def load_test_rules() -> Dict[str, dict]:
     """Carica tutte le regole di test dai file YAML nella directory rules."""
     rules = {}
@@ -39,8 +41,9 @@ def load_test_rules() -> Dict[str, dict]:
     return rules
 
 
+
 def test_call_llm(
-    test_prompt: str, model: str = None, use_base64: bool = False
+    test_prompt: str,  use_base64: bool = False
 ) -> Tuple[str, bool]:
     """
     Testa il prompt usando la funzione call_llm.
@@ -57,7 +60,8 @@ def test_call_llm(
             test_prompt_to_use = test_prompt
 
         combined_prompt = f"{test_prompt_to_use}"
-        result = call_llm(PROMPT=combined_prompt, MODEL=model)
+        result = call_llm(PROMPT=combined_prompt)
+
         if result.get("message") == "success" and "response" in result:
             return result["response"].strip(), False
         else:
@@ -75,6 +79,10 @@ def check_with_controller_llm(
     Usa GPT-4o-mini come controller per valutare se l'output passa o fallisce.
     Returns 'pass' or 'fail'.
     """
+    if not os.getenv("LLM_KEY") or os.getenv("LLM_MODEL") is None:
+        raise ValueError(
+            "LLM_KEY e LLM_MODEL sono richiesti per il Controller LLM"
+        )
 
     # Costruisce il prompt per il controller
     controller_prompt = CONTROLLER_PROMPT.format(
@@ -120,10 +128,10 @@ def check_with_controller_llm(
 
     except Exception as e:
         print(f"Errore nel controller LLM: {e}")
-        raise e  # Rendi obbligatorio l'uso del controller
+        raise e 
+    
 
-
-def evaluate_test_result(
+def evaluate_test_result( 
     rule_name: str, rule: dict, response: str, is_error: bool
 ) -> Tuple[bool, str]:
     """
@@ -154,7 +162,6 @@ def run_test(
     test_name: str,
     rule: dict,
     num_runs: int = 1,
-    model: str = None,
     test_both: bool = True,
     use_base64_only: bool = False,
 ) -> Dict:
@@ -163,7 +170,9 @@ def run_test(
     if use_base64_only:
         # Solo test Base64
         print(f"🔒 Test solo Base64: {YELLOW}{test_name}{RESET}")
-        return run_single_test_internal(test_name, rule, num_runs, model, True)
+        return run_single_test_internal(
+            test_name, rule, num_runs, True
+        )
     elif test_both:
         # Testa entrambe le versioni (default)
         print(f"🔄 Test doppio: {YELLOW}{test_name}{RESET}")
@@ -171,13 +180,13 @@ def run_test(
         # Test normale
         print(f"  📝 Versione normale:")
         normal_result = run_single_test_internal(
-            f"{test_name}_normal", rule, num_runs, model, False
+            f"{test_name}_normal", rule, num_runs, False
         )
 
         # Test Base64
         print(f"  🔒 Versione Base64:")
         base64_result = run_single_test_internal(
-            f"{test_name}_base64", rule, num_runs, model, True
+            f"{test_name}_base64", rule, num_runs, True
         )
 
         # Determina il risultato combinato
@@ -223,14 +232,15 @@ def run_test(
     else:
         # Solo test normale
         print(f"📝 Test solo normale: {YELLOW}{test_name}{RESET}")
-        return run_single_test_internal(test_name, rule, num_runs, model, False)
+        return run_single_test_internal(
+            test_name, rule, num_runs, False
+        )
 
 
 def run_single_test_internal(
     test_name: str,
     rule: dict,
     num_runs: int,
-    model: str,
     use_base64: bool,
 ) -> Dict:
     """Esegue un singolo test multiple volte."""
@@ -242,7 +252,9 @@ def run_single_test_internal(
         print(f"    --- Iterazione {i+1}/{num_runs}{encoding_info} ---")
 
         # Testa il prompt
-        response, is_error = test_call_llm(rule["prompt"], model, use_base64)
+        response, is_error = test_call_llm(
+            rule["prompt"], use_base64
+        )
 
         # Valuta il risultato
         passed, reason = evaluate_test_result(test_name, rule, response, is_error)
@@ -290,24 +302,13 @@ def run_tests(
     severities: list = None,
     rule_names: list = None,
     rule_types: list = None,
-    model: str = None,
     test_both: bool = True,
     use_base64_only: bool = False,
 ) -> Dict[str, dict]:
     """Esegue tutti i test e restituisce i risultati."""
     print("\nTest avviato...")
 
-    # Determina i modelli da testare
-    if model:
-        models = [model]
-        print(f"{YELLOW}🤖 Modello specificato: {model}{RESET}")
-    else:
-        models_str = os.getenv("MODELS", "")
-        if not models_str:
-            raise ValueError("Variabile d'ambiente MODELS non configurata")
-        models = [m.strip() for m in models_str.split(",")]
-        print(f"{YELLOW}🤖 Testando con tutti i modelli: {', '.join(models)}{RESET}")
-
+    
     if use_base64_only:
         print(
             f"{YELLOW}🔒 Modalità solo Base64 - Tutti i prompt saranno codificati{RESET}"
@@ -353,51 +354,37 @@ def run_tests(
         print("Nessuna regola trovata con i filtri specificati.")
         return {}
 
-    total_tests = total_filtered * len(models)
+    total_tests = total_filtered
     test_count = 0
 
-    # Itera su tutti i modelli
-    for model_idx, current_model in enumerate(models, 1):
-        if len(models) > 1:
-            print(f"\n{'='*80}")
-            print(
-                f"🤖 MODELLO {model_idx}/{len(models)}: {YELLOW}{current_model}{RESET}"
-            )
-            print(f"{'='*80}")
 
-        # Itera su tutte le regole per questo modello
-        for rule_idx, (test_name, rule) in enumerate(filtered_rules.items(), 1):
-            test_count += 1
 
-            # Nome del test include il modello se ci sono più modelli
-            if len(models) > 1:
-                full_test_name = f"{test_name}_{current_model.replace(' ', '_')}"
-                print(
-                    f"\n[{test_count}/{total_tests}] Test: {YELLOW}{test_name}{RESET} su {YELLOW}{current_model}{RESET} (Tipo: {rule['type']}, Severità: {rule['severity']})"
-                )
-            else:
-                full_test_name = test_name
-                print(
-                    f"\n[{test_count}/{total_tests}] Test: {YELLOW}{test_name}{RESET} (Tipo: {rule['type']}, Severità: {rule['severity']})"
-                )
+    # Itera su tutte le regole per questo modello
+    for rule_idx, (test_name, rule) in enumerate(filtered_rules.items(), 1):
+        test_count += 1
 
-            result = run_test(
-                test_name,
-                rule,
-                iterations,
-                current_model,
-                test_both,
-                use_base64_only,
-            )
+        
+        full_test_name = test_name
+        print(
+            f"\n[{test_count}/{total_tests}] Test: {YELLOW}{test_name}{RESET} (Tipo: {rule['type']}, Severità: {rule['severity']})"
+        )
 
-            # Aggiungi informazioni sul modello al risultato
-            result["model"] = current_model
-            results[full_test_name] = result
+        result = run_test(
+            test_name,
+            rule,
+            iterations,
+            test_both,
+            use_base64_only,
+        )
+
+        # Aggiungi informazioni sul modello al risultato
+        result["model"] = "API_call"
+        results[full_test_name] = result
 
     print(f"\n{'='*80}")
     print(f"✅ Tutti i test completati!")
     print(
-        f"📊 {len(models)} modello(i) × {total_filtered} test = {total_tests} test totali"
+        f"📊 × {total_filtered} test = {total_tests} test totali"
     )
     print(f"{'='*80}")
     return results
@@ -475,6 +462,7 @@ def print_summary(results: Dict[str, dict]) -> str:
     return "\n".join(output_lines)
 
 
+
 def main():
     print(
         r"""
@@ -491,7 +479,6 @@ def main():
     parser = argparse.ArgumentParser(
         description="Test LLM tramite call_llm contro attacchi di prompt injection"
     )
-    parser.add_argument("--model", help="Modello LLM specifico da testare (opzionale)")
     parser.add_argument(
         "--severity",
         type=lambda s: [item.strip() for item in s.split(",")],
@@ -510,7 +497,7 @@ def main():
         help="Lista di tipi di regole da eseguire, separati da virgola",
     )
     parser.add_argument(
-        "--output", default="risultati.json", help="File di output per i risultati"
+        "--output", default="out/risultati.json", help="File di output per i risultati"
     )
     parser.add_argument(
         "--iterations",
@@ -568,7 +555,6 @@ def main():
             severities=args.severity,
             rule_names=args.rules,
             rule_types=args.rule_type,
-            model=args.model,
             test_both=test_both,
             use_base64_only=use_base64_only,
         )
@@ -584,6 +570,7 @@ def main():
         with open(args.output.replace(".json", ".txt"), "w", encoding="utf-8") as f:
             f.write(summary)
         print(f"\nRiassunto salvato in: {args.output.replace('.json','.txt')}")
+
 
     except KeyboardInterrupt:
         print(f"\n{YELLOW}Test interrotti dall'utente.{RESET}")

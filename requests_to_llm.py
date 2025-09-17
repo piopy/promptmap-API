@@ -5,12 +5,12 @@ url = "https://ENDPOINT"
 
 
 def call_llm( 
-    message: str,
+    PROMPT: str,
 ):
     payload = json.dumps(
         {
             # edit the payload according to your LLM API, for example:
-            "messages": [{"role": "user", "content": message}],
+            "messages": [{"role": "user", "content": PROMPT}],
         }
     )
     headers = {
@@ -27,8 +27,8 @@ def call_llm(
 
     # Try to make your function output a dictionary like this:
     # {
-    #     "message": "success",
-    #     "query": "MESSAGE",
+    #     "message": "success" if response.ok else "error",
+    #     "query": PROMPT,
     #     "response": "LLM RESPONSE",
     # }
     return response.json()
